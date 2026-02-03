@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Analytics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* --- VISUAL CORE --- */
+        :root {
+            --bg-dark: #090b10;
+            --card-bg: rgba(20, 25, 35, 0.85);
+            --neon-blue: #00f3ff;
+            --neon-purple: #bc13fe;
+            --neon-green: #00ff66;
+            --neon-yellow: #ffcc00;
+            --neon-orange: #ff8800;
+            --neon-red: #ff3333;
+            --text-main: #ffffff;
+            --text-muted: #8b9bb4;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            background-image: url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=2070&auto=format&fit=crop');
+            background-size: cover;
+            background-attachment: fixed;
+            color: var(--text-main);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0; padding: 20px;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        /* CARDS */
+        .tech-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-top: 2px solid var(--neon-blue);
+            border-radius: 12px;
+            padding: 20px; margin-bottom: 25px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .risk-card {
+            border-top: 2px solid var(--neon-red);
+            background: rgba(40, 10, 10, 0.9);
+        }
+
+        h3 { 
+            color: var(--neon-blue); margin-top: 0; font-size: 0.9rem; 
+            text-transform: uppercase; letter-spacing: 1.5px; border-bottom: 1px solid rgba(255,255,255,0.1); 
+            padding-bottom: 10px; margin-bottom: 15px; 
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        /* CHART CONTAINER */
+        .chart-box { position: relative; height: 320px; width: 100%; }
+
+        /* TABLE */
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th { text-align: left; padding: 12px; color: var(--text-muted); border-bottom: 1px solid #444; }
+        td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+
+        /* BUTTONS */
+        .btn-group { display: flex; gap: 15px; }
+        .btn-glow {
+            background: linear-gradient(90deg, var(--neon-purple), var(--neon-blue));
+            color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;
+            font-weight: bold; font-size: 0.8rem; border: none; cursor: pointer;
+        }
+        .btn-danger {
+            background: transparent; border: 1px solid var(--neon-red); color: var(--neon-red);
+            padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.3s;
+        }
+        .btn-danger:hover { background: var(--neon-red); color: white; box-shadow: 0 0 15px var(--neon-red); }
+
+        /* RISK BADGES */
+        .badge-risk { background: rgba(255, 51, 51, 0.2); color: var(--neon-red); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--neon-red); font-size: 0.75rem; }
+        .intervention-text { color: var(--neon-yellow); font-style: italic; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
+            <div>
+                <h1 style="margin:0;">ANALYTICS <span style="color:var(--neon-purple)">GRID</span></h1>
+                <span style="color:var(--text-muted); font-size:0.9rem;">Real-time Performance Intelligence</span>
+            </div>
+            
+            <div class="btn-group">
+                <form action="/clear" method="POST" onsubmit="return confirm('WARNING: Delete ALL history?');">
+                    <button type="submit" class="btn-danger"><i class="fa-solid fa-trash"></i> ERASE DB</button>
+                </form>
+                <a href="/" class="btn-glow"><i class="fa-solid fa-plus"></i> NEW ENTRY</a>
+            </div>
+        </div>
+
+        {% if risk_students %}
+        <div class="tech-card risk-card">
+            <h3 style="color: var(--neon-red);">
+                <span><i class="fa-solid fa-triangle-exclamation"></i> Early Warning System</span>
+                <span style="font-size:0.8rem; background:var(--neon-red); color:white; padding:2px 8px; border-radius:10px;">{{ risk_students|length }} Alerts</span>
+            </h3>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Entry Date</th>
+                        <th>Risk Factors</th>
+                        <th>Metrics (Att% / Marks%)</th>
+                        <th>Recommended Intervention</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in risk_students %}
+                    <tr>
+                        <td style="color: var(--text-muted);">{{ student.created_at }}</td>
+                        <td><span class="badge-risk">{{ student.risk_factors }}</span></td>
+                        <td style="font-family:monospace;">{{ student.attendance }}% / {{ student.total_marks }}%</td>
+                        <td class="intervention-text"><i class="fa-solid fa-user-doctor"></i> {{ student.intervention }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px;">
+            <div class="tech-card">
+                <h3><i class="fa-solid fa-chart-line"></i> Longitudinal Trend</h3>
+                <div class="chart-box">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+            <div class="tech-card">
+                <h3><i class="fa-solid fa-chart-pie"></i> Grade Distribution</h3>
+                <div class="chart-box">
+                    <canvas id="pieChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+            <div class="tech-card">
+                <h3><span><i class="fa-solid fa-project-diagram"></i> Attendance Correlation</span></h3>
+                <div class="chart-box" style="height: 280px;">
+                    <canvas id="scatterChart"></canvas>
+                </div>
+            </div>
+            <div class="tech-card">
+                <h3><i class="fa-solid fa-chart-simple"></i> Category Averages</h3>
+                <div class="chart-box" style="height: 280px;">
+                    <canvas id="barChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="tech-card">
+            <h3><i class="fa-solid fa-list"></i> Recent Logs</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Attendance</th>
+                        <th>Internal</th>
+                        <th>External</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in data %}
+                    <tr>
+                        <td style="color: var(--neon-blue)">{{ row.created_at }}</td>
+                        <td style="color: #aaa;">{{ row.attendance }}%</td>
+                        <td>{{ row.avg_internal }}</td>
+                        <td>{{ row.external_marks }}</td>
+                        <td style="font-weight:bold; font-size:1.1em;">{{ row.total_marks }}%</td>
+                        <td style="color: {{ '#00ff66' if row.performance == 'Best' else '#ffcc00' if row.performance == 'Good' else '#ff8800' if row.performance == 'Average' else '#ff3333' }}; font-weight:bold;">
+                            {{ row.performance }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const dates = []; const scores = []; const categories = []; const attendance = [];
+        {% for row in data %}
+            dates.push("{{ row.created_at }}".split(" ")[0]); 
+            var cleanScore = parseFloat("{{ row.total_marks }}".replace('%', ''));
+            scores.push(cleanScore);
+            attendance.push(parseFloat("{{ row.attendance }}") || 0);
+            categories.push("{{ row.performance }}");
+        {% endfor %}
+
+        const revDates = [...dates].reverse();
+        const revScores = [...scores].reverse();
+        
+        // Chart Defaults
+        Chart.defaults.color = '#8b9bb4';
+        Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
+        Chart.defaults.font.family = 'Segoe UI';
+
+        // 1. Line Chart
+        new Chart(document.getElementById('trendChart'), {
+            type: 'line',
+            data: {
+                labels: revDates,
+                datasets: [{
+                    label: 'Performance',
+                    data: revScores,
+                    borderColor: '#bc13fe',
+                    backgroundColor: 'rgba(188, 19, 254, 0.1)',
+                    borderWidth: 2, fill: true, tension: 0.3
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100 } } }
+        });
+
+        // 2. Pie Chart
+        let counts = { 'Best': 0, 'Good': 0, 'Average': 0, 'Poor': 0 };
+        categories.forEach(cat => {
+            let f = cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
+            if (counts[f] !== undefined) counts[f]++; else counts['Poor']++;
+        });
+        new Chart(document.getElementById('pieChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Best', 'Good', 'Average', 'Poor'],
+                datasets: [{
+                    data: [counts.Best, counts.Good, counts.Average, counts.Poor],
+                    backgroundColor: ['#00ff66', '#ffcc00', '#ff8800', '#ff3333'], borderWidth: 0
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+        });
+
+        // 3. Scatter Chart
+        const scatterData = attendance.map((att, i) => ({ x: att, y: scores[i] }));
+        new Chart(document.getElementById('scatterChart'), {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Student Data',
+                    data: scatterData,
+                    backgroundColor: '#00f3ff', pointRadius: 5
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { x: { title: { display: true, text: 'Attendance' }, min: 0, max: 100 }, y: { min: 0, max: 100 } },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // 4. Bar Chart
+        let sums = { 'Best': 0, 'Good': 0, 'Average': 0, 'Poor': 0 };
+        let totals = { 'Best': 0, 'Good': 0, 'Average': 0, 'Poor': 0 };
+        for (let i = 0; i < scores.length; i++) {
+            let cat = categories[i].charAt(0).toUpperCase() + categories[i].slice(1).toLowerCase();
+            if (sums[cat] !== undefined) { sums[cat] += scores[i]; totals[cat]++; }
+        }
+        const calcAvg = (cat) => totals[cat] > 0 ? (sums[cat] / totals[cat]).toFixed(1) : 0;
+        new Chart(document.getElementById('barChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Best', 'Good', 'Avg', 'Poor'],
+                datasets: [{
+                    label: 'Avg Score',
+                    data: [calcAvg('Best'), calcAvg('Good'), calcAvg('Average'), calcAvg('Poor')],
+                    backgroundColor: ['#00ff66', '#ffcc00', '#ff8800', '#ff3333'], borderRadius: 4
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100 } } }
+        });
+    </script>
+</body>
+</html>

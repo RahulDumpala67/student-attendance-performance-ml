@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXUS // COMMAND</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- 1. CORE LAYOUT & LAYERS --- */
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-purple: #bc13fe;
+            --deep-bg: #050505;
+            --panel-bg: rgba(10, 15, 20, 0.85);
+            --border-color: rgba(0, 243, 255, 0.3);
+        }
+
+        body {
+            margin: 0; padding: 0; height: 100vh; overflow: hidden;
+            background-color: var(--deep-bg);
+            font-family: 'Rajdhani', sans-serif; color: white;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        /* LAYER 1: The Physics Canvas (Background) */
+        #particle-canvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; /* Keep it behind everything */
+            background: radial-gradient(circle at center, #111 0%, #000 100%);
+        }
+
+        /* LAYER 2: The Interface Container */
+        .interface-container {
+            position: relative; z-index: 10; /* Strictly on top */
+            width: 460px;
+        }
+
+        /* --- 2. THE MAIN PANEL (Stabilized) --- */
+        .cyber-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            padding: 40px;
+            box-shadow: 0 0 60px rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(15px);
+            /* Tech Corners */
+            clip-path: polygon(
+                20px 0, 100% 0, 100% calc(100% - 20px), 
+                calc(100% - 20px) 100%, 0 100%, 0 20px
+            );
+            /* Subtle Breathing Animation (No dizzy floating) */
+            animation: breathe 8s ease-in-out infinite;
+        }
+
+        /* Top decorative glowing line */
+        .cyber-panel::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 3px;
+            background: linear-gradient(90deg, transparent, var(--neon-blue), transparent);
+            box-shadow: 0 0 10px var(--neon-blue);
+        }
+
+        h2 {
+            font-family: 'Orbitron', sans-serif; text-align: center; margin: 0 0 5px 0;
+            color: var(--neon-blue); letter-spacing: 3px; text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+        }
+        .status {
+            text-align: center; font-size: 0.8rem; color: #888; letter-spacing: 2px;
+            margin-bottom: 30px; text-transform: uppercase;
+        }
+
+        /* --- 3. INPUT FIELDS --- */
+        .grid-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        
+        .input-wrap label {
+            display: block; font-size: 0.75rem; color: var(--neon-blue); margin-bottom: 5px;
+            text-transform: uppercase; letter-spacing: 1px; font-weight: bold;
+        }
+
+        input {
+            width: 100%; padding: 12px; box-sizing: border-box;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid #333; border-left: 2px solid #555;
+            color: white; font-family: 'Orbitron', sans-serif; font-size: 1rem;
+            transition: 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--neon-blue);
+            background: rgba(0, 243, 255, 0.05);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
+        }
+
+        /* --- 4. ACTION BUTTONS --- */
+        .btn-core {
+            width: 100%; padding: 16px; margin-top: 10px;
+            background: transparent;
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue); font-family: 'Orbitron', sans-serif; font-weight: bold;
+            letter-spacing: 3px; font-size: 1rem; cursor: pointer;
+            text-transform: uppercase; transition: 0.3s;
+            position: relative; overflow: hidden;
+            z-index: 20; /* Ensure clickable */
+        }
+        
+        .btn-core:hover {
+            background: var(--neon-blue); color: #000;
+            box-shadow: 0 0 30px var(--neon-blue);
+        }
+
+        /* The Dashboard Link (Fixed) */
+        .btn-dash {
+            display: block; width: 100%; text-align: center; margin-top: 20px;
+            padding: 12px; box-sizing: border-box;
+            text-decoration: none; color: #777; font-size: 0.9rem;
+            border: 1px dashed #444; letter-spacing: 1px;
+            transition: 0.3s; z-index: 20; cursor: pointer;
+        }
+        .btn-dash:hover {
+            color: white; border-color: white; background: rgba(255,255,255,0.05);
+        }
+        .btn-dash i { margin-right: 8px; }
+
+        /* --- 5. REACTOR GAUGE (Result) --- */
+        .reactor-hud {
+            margin-top: 30px; padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            display: none; /* JS enables this */
+        }
+
+        .reactor-ring {
+            position: relative; width: 140px; height: 140px; display: flex; justify-content: center; align-items: center;
+        }
+        
+        /* Spinner 1 */
+        .spin-outer {
+            position: absolute; width: 100%; height: 100%; border-radius: 50%;
+            border: 2px dashed #333; border-top-color: var(--neon-blue);
+            animation: spin 10s linear infinite;
+        }
+        /* Spinner 2 */
+        .spin-inner {
+            position: absolute; width: 80%; height: 80%; border-radius: 50%;
+            border: 4px solid transparent; border-left-color: var(--neon-blue); border-right-color: var(--neon-purple);
+            animation: spinRev 3s linear infinite;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+        }
+
+        .score-text {
+            font-family: 'Orbitron', sans-serif; font-size: 2.2rem; font-weight: 900;
+            z-index: 5; text-shadow: 0 0 20px white;
+        }
+
+        .cat-text {
+            margin-top: 15px; color: var(--neon-blue); font-size: 1rem; letter-spacing: 3px;
+            animation: blink 2s infinite; text-transform: uppercase;
+        }
+
+        /* ANIMATIONS */
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes spinRev { 100% { transform: rotate(-360deg); } }
+        @keyframes breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    </style>
+</head>
+<body>
+
+    <canvas id="particle-canvas"></canvas>
+
+    <div class="interface-container">
+        <div class="cyber-panel">
+            <h2>NEXUS CORE</h2>
+            <div class="status">SYSTEM ONLINE // V.4.0</div>
+
+            <form action="/" method="POST">
+                <div class="grid-row">
+                    <div class="input-wrap">
+                        <label>Attendance %</label>
+                        <input type="number" step="0.1" name="attendance" required>
+                    </div>
+                    <div class="input-wrap">
+                        <label>Internal 01</label>
+                        <input type="number" step="0.1" name="i1" required>
+                    </div>
+                </div>
+
+                <div class="grid-row">
+                    <div class="input-wrap">
+                        <label>Internal 02</label>
+                        <input type="number" step="0.1" name="i2" required>
+                    </div>
+                    <div class="input-wrap">
+                        <label>External</label>
+                        <input type="number" step="0.1" name="external" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-core">
+                    <i class="fa-solid fa-bolt"></i> INITIATE PREDICTION
+                </button>
+            </form>
+
+            {% if total %}
+            <div class="reactor-hud" id="hud">
+                <div class="reactor-ring">
+                    <div class="spin-outer"></div>
+                    <div class="spin-inner"></div>
+                    <span class="score-text" id="score">0%</span>
+                </div>
+                <div class="cat-text">{{ category }}</div>
+            </div>
+
+            <script>
+                // ANIMATION LOGIC
+                document.getElementById('hud').style.display = 'flex';
+                const target = parseFloat("{{ total }}");
+                const el = document.getElementById('score');
+                
+                // Color Logic
+                if(target >= 75) el.style.color = "#0aff0a"; // Green
+                else if(target >= 50) el.style.color = "#ffe600"; // Yellow
+                else el.style.color = "#ff2a2a"; // Red
+
+                // Count Up
+                let count = 0;
+                const timer = setInterval(() => {
+                    if(count >= target) {
+                        clearInterval(timer);
+                        el.innerText = target + "%";
+                    } else {
+                        count++;
+                        el.innerText = count + "%";
+                    }
+                }, 10);
+            </script>
+            {% endif %}
+
+            <a href="/dashboard" class="btn-dash">
+                <i class="fa-solid fa-database"></i> ACCESS ANALYTICS DATABASE
+            </a>
+
+        </div>
+    </div>
+
+    <script>
+        /* --- BACKGROUND PHYSICS ENGINE (Optimized) --- */
+        const canvas = document.getElementById('particle-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let particlesArray;
+        let mouse = { x: null, y: null, radius: 150 };
+
+        window.addEventListener('mousemove', function(event) {
+            mouse.x = event.x;
+            mouse.y = event.y;
+        });
+
+        class Particle {
+            constructor(x, y, directionX, directionY, size, color) {
+                this.x = x; this.y = y;
+                this.directionX = directionX; this.directionY = directionY;
+                this.size = size; this.color = color;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
+                ctx.fillStyle = '#00f3ff';
+                ctx.fill();
+            }
+            update() {
+                if (this.x > canvas.width || this.x < 0) this.directionX = -this.directionX;
+                if (this.y > canvas.height || this.y < 0) this.directionY = -this.directionY;
+                
+                // Mouse interaction (Push effect)
+                let dx = mouse.x - this.x;
+                let dy = mouse.y - this.y;
+                let distance = Math.sqrt(dx*dx + dy*dy);
+                if (distance < mouse.radius + this.size){
+                    if (mouse.x < this.x && this.x < canvas.width - this.size * 10) this.x += 2;
+                    if (mouse.x > this.x && this.x > this.size * 10) this.x -= 2;
+                    if (mouse.y < this.y && this.y < canvas.height - this.size * 10) this.y += 2;
+                    if (mouse.y > this.y && this.y > this.size * 10) this.y -= 2;
+                }
+
+                this.x += this.directionX;
+                this.y += this.directionY;
+                this.draw();
+            }
+        }
+
+        function init() {
+            particlesArray = [];
+            let numberOfParticles = (canvas.height * canvas.width) / 10000;
+            for (let i = 0; i < numberOfParticles; i++) {
+                let size = (Math.random() * 2) + 0.5;
+                let x = (Math.random() * ((innerWidth - size * 2) - (size * 2)) + size * 2);
+                let y = (Math.random() * ((innerHeight - size * 2) - (size * 2)) + size * 2);
+                let directionX = (Math.random() * 0.5) - 0.25;
+                let directionY = (Math.random() * 0.5) - 0.25;
+                particlesArray.push(new Particle(x, y, directionX, directionY, size, '#00f3ff'));
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            ctx.clearRect(0,0,innerWidth, innerHeight);
+            for (let i = 0; i < particlesArray.length; i++) {
+                particlesArray[i].update();
+            }
+            connect();
+        }
+
+        function connect() {
+            for (let a = 0; a < particlesArray.length; a++) {
+                for (let b = a; b < particlesArray.length; b++) {
+                    let distance = ((particlesArray[a].x - particlesArray[b].x) * (particlesArray[a].x - particlesArray[b].x)) + ((particlesArray[a].y - particlesArray[b].y) * (particlesArray[a].y - particlesArray[b].y));
+                    if (distance < (canvas.width/7) * (canvas.height/7)) {
+                        ctx.strokeStyle = 'rgba(0, 243, 255,' + (1 - (distance/20000)) + ')';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
+                        ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        init();
+        animate();
+        window.addEventListener('resize', () => { canvas.width = innerWidth; canvas.height = innerHeight; init(); });
+    </script>
+
+</body>
+</html>
