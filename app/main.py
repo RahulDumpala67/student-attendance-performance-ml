@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for
 import mysql.connector
+import os
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
@@ -8,14 +9,15 @@ app.secret_key = "supersecretkey"
 def get_db_connection():
     try:
         return mysql.connector.connect(
-            host="localhost",
-            user="root",
-            password="rahul@123",
-            database="student_dashboard",
+            host=os.getenv("DB_HOST", "localhost"),
+            user=os.getenv("DB_USER", "root"),
+            password=os.getenv("DB_PASSWORD", "rahul@123"),
+            database=os.getenv("DB_NAME", "student_dashboard"),
+            port=int(os.getenv("DB_PORT", 3306)),
             auth_plugin="mysql_native_password"
         )
-    except:
-        # IMPORTANT: Return None if DB is not available (Render)
+    except Exception as e:
+        print("DB connection failed:", e)
         return None
 
 
@@ -33,7 +35,6 @@ def index():
         internal_avg = round((i1 + i2) / 2, 2)
         total = round(internal_avg + external, 2)
 
-        # Performance Category
         if total >= 75:
             category = "Best"
         elif total >= 60:
@@ -43,7 +44,6 @@ def index():
         else:
             category = "Poor"
 
-        # Save to DB (ONLY if DB exists)
         db = get_db_connection()
         if db:
             try:
@@ -73,8 +73,6 @@ def index():
 @app.route("/dashboard")
 def dashboard():
     db = get_db_connection()
-
-    # If DB not available (Render), show empty dashboard
     if not db:
         return render_template("dashboard.html", data=[], risk_students=[])
 
@@ -90,7 +88,6 @@ def dashboard():
         cur.close()
         db.close()
 
-        # Risk analysis
         risk_students = []
         for row in data:
             reasons = []
@@ -140,7 +137,7 @@ def clear_history():
 def init_db():
     db = get_db_connection()
     if not db:
-        return "<h1 style='color:red;'>Database not available on server</h1>"
+        return "<h1 style='color:red;'>Database not available</h1>"
 
     try:
         cur = db.cursor()
@@ -162,10 +159,8 @@ def init_db():
         cur.close()
         db.close()
 
-        return """
-            <h1 style='color:green;'>✅ Database Initialized Successfully</h1>
-            <a href='/'>Go to Home</a>
-        """
+        return "<h1 style='color:green;'>✅ Database Initialized Successfully</h1>"
+
     except Exception as e:
         return f"<h1 style='color:red;'>❌ Setup Failed: {e}</h1>"
 
