@@ -6,7 +6,7 @@ numpy
 scikit-learn
 joblib
 
-PyMySQL
+mysql-connector-python
 SQLAlchemy
 
 gunicorn
