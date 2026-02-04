@@ -4,7 +4,12 @@ import os
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
-DB_NAME = "student_dashboard.db"
+# Get the directory of the current file (app/main.py)
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Go up one level to the project root
+PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
+# Define absolute path for DB
+DB_NAME = os.path.join(PROJECT_ROOT, "student_dashboard.db")
 
 # --- DATABASE CONNECTION HELPER ---
 def get_db_connection():
