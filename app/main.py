@@ -170,28 +170,11 @@ def init_db():
         conn.commit()
         conn.close()
 
-        return "<h1 style='color:green;'>Database Initialized Successfully (SQLite)</h1>"
+        return "<h1 style='color:green;'>MySQL Database Initialized Successfully</h1>"
 
     except Exception as e:
         return f"<h1 style='color:red;'>Setup Failed: {e}</h1>"
 
 
-def check_and_create_db():
-    # SQLite creates the file automatically on connect
-    if not os.path.exists(DB_NAME):
-        print("Database file not found. Initializing...")
-        try:
-            # Re-use init_db logic indirectly or just let init_db handle table creation
-            # Here we just ensure the empty file is creatable
-            conn = sqlite3.connect(DB_NAME)
-            conn.close()
-            print("Database file created.")
-        except Exception as e:
-            print("Failed to create database file:", e)
-    else:
-        print("Database file found.")
-
-
 if __name__ == "__main__":
-    check_and_create_db()
     app.run(debug=True)
