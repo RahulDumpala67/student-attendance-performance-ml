@@ -1,42 +1,23 @@
 from flask import Flask, render_template, request, redirect, url_for
-import sqlite3
+import mysql.connector
 import os
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
-# Get the directory of the current file (app/main.py)
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-# Go up one level to the project root
-PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
-# Define absolute path for DB
-DB_NAME = os.path.join(PROJECT_ROOT, "student_dashboard.db")
 
 # --- DATABASE CONNECTION HELPER ---
 def get_db_connection():
     try:
-        conn = sqlite3.connect(DB_NAME)
-        conn.row_factory = sqlite3.Row  # Access columns by name
-        return conn
+        return mysql.connector.connect(
+            host=os.getenv("DB_HOST", "127.0.0.1"),
+            user=os.getenv("DB_USER", "root"),
+            password=os.getenv("DB_PASSWORD", "root"),
+            database=os.getenv("DB_NAME", "student_dashboard"),
+            port=int(os.getenv("DB_PORT", 3306))
+        )
     except Exception as e:
-        return str(e) # Return error string instead of None for debugging
-
-# --- ... (routes) ...
-
-# --- 4. DATABASE SETUP ---
-@app.route('/init_db')
-def init_db():
-    conn = get_db_connection()
-    
-    # Check if conn is a string (error message)
-    if isinstance(conn, str):
-        return f"<h1 style='color:red;'>Database Error: {conn}</h1><p>Attempted path: {DB_NAME}</p>"
-    
-    if not conn:
-         return f"<h1 style='color:red;'>Database Unknown Error</h1><p>Attempted path: {DB_NAME}</p>"
-
-    try:
-        cur = conn.cursor()
-
+        print("DB connection failed:", e)
+        return str(e)
 
 
 # --- 1. HOME PAGE (PREDICTION & INPUT) ---
@@ -45,37 +26,45 @@ def index():
     internal_avg = external = total = category = None
 
     if request.method == "POST":
-        attendance = float(request.form["attendance"])
-        i1 = float(request.form["i1"])
-        i2 = float(request.form["i2"])
-        external = float(request.form["external"])
 
-        internal_avg = round((i1 + i2) / 2, 2)
-        total = round(internal_avg + external, 2)
+        try:
+            attendance = float(request.form["attendance"])
+            i1 = float(request.form["i1"])
+            i2 = float(request.form["i2"])
+            external = float(request.form["external"])
 
-        if total >= 75:
-            category = "Best"
-        elif total >= 60:
-            category = "Good"
-        elif total >= 40:
-            category = "Average"
-        else:
-            category = "Poor"
+            internal_avg = round((i1 + i2) / 2, 2)
+            total = round(internal_avg + external, 2)
 
-        conn = get_db_connection()
-        if conn:
-            try:
-                cur = conn.cursor()
-                cur.execute("""
-                    INSERT INTO predictions
-                    (attendance, internal_exam_1, internal_exam_2,
-                     avg_internal, external_marks, total_marks, performance)
-                    VALUES (?,?,?,?,?,?,?)
-                """, (attendance, i1, i2, internal_avg, external, total, category))
-                conn.commit()
-                conn.close()
-            except Exception as e:
-                print("DB insert failed:", e)
+            if total >= 75:
+                category = "Best"
+            elif total >= 60:
+                category = "Good"
+            elif total >= 40:
+                category = "Average"
+            else:
+                category = "Poor"
+
+            conn = get_db_connection()
+            if hasattr(conn, 'cursor'): # Check if it's a real connection object
+                try:
+                    cur = conn.cursor()
+                    cur.execute("""
+                        INSERT INTO predictions
+                        (attendance, internal_exam_1, internal_exam_2,
+                         avg_internal, external_marks, total_marks, performance)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s)
+                    """, (attendance, i1, i2, internal_avg, external, total, category))
+                    conn.commit()
+                    cur.close()
+                    conn.close()
+                except Exception as e:
+                    print("DB insert failed:", e)
+            else:
+                print("DB unavailable for insert")
+
+        except ValueError:
+            pass # Handle invalid input
 
     return render_template(
         "index.html",
@@ -90,12 +79,13 @@ def index():
 @app.route("/dashboard")
 def dashboard():
     conn = get_db_connection()
-    if not conn:
+    
+    # If error string or None
+    if not hasattr(conn, 'cursor'):
         return render_template("dashboard.html", data=[], risk_students=[])
 
     try:
-        cur = conn.cursor()
-        # No 'dictionary=True' in sqlite3, row_factory handles it
+        cur = conn.cursor(dictionary=True)
         cur.execute("""
             SELECT attendance, avg_internal, external_marks,
                    total_marks, performance, created_at
@@ -103,6 +93,7 @@ def dashboard():
             ORDER BY created_at DESC
         """)
         data = cur.fetchall()
+        cur.close()
         conn.close()
 
         risk_students = []
@@ -110,7 +101,6 @@ def dashboard():
             reasons = []
             intervention = "None"
 
-            # SQLite rows behave like dicts due to row_factory
             if row['attendance'] < 75:
                 reasons.append("Low Attendance")
                 intervention = "Parent Meeting"
@@ -123,11 +113,9 @@ def dashboard():
                     intervention += " & Remedial Classes"
 
             if reasons:
-                # Convert row to dict to append extra fields (Rows are immutable)
-                row_dict = dict(row)
-                row_dict['risk_factors'] = " + ".join(reasons)
-                row_dict['intervention'] = intervention
-                risk_students.append(row_dict)
+                row['risk_factors'] = " + ".join(reasons)
+                row['intervention'] = intervention
+                risk_students.append(row)
 
         return render_template("dashboard.html", data=data, risk_students=risk_students)
 
@@ -139,11 +127,12 @@ def dashboard():
 @app.route('/clear', methods=['POST'])
 def clear_history():
     conn = get_db_connection()
-    if conn:
+    if hasattr(conn, 'cursor'):
         try:
             cur = conn.cursor()
             cur.execute("DELETE FROM predictions")
             conn.commit()
+            cur.close()
             conn.close()
         except Exception as e:
             print("Clear failed:", e)
@@ -155,23 +144,26 @@ def clear_history():
 @app.route('/init_db')
 def init_db():
     conn = get_db_connection()
+    
+    if isinstance(conn, str):
+        return f"<h1 style='color:red;'>Database Connection Failed: {conn}</h1>"
+    
     if not conn:
-        return "<h1 style='color:red;'>Database not available</h1>"
+         return "<h1 style='color:red;'>Unknown Database Error</h1>"
 
     try:
         cur = conn.cursor()
         cur.execute("DROP TABLE IF EXISTS predictions")
-        # SQLite uses AUTOINCREMENT differently, usually implied by INTEGER PRIMARY KEY
         cur.execute("""
             CREATE TABLE predictions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                attendance REAL,
-                internal_exam_1 REAL,
-                internal_exam_2 REAL,
-                avg_internal REAL,
-                external_marks REAL,
-                total_marks REAL,
-                performance TEXT,
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                attendance FLOAT,
+                internal_exam_1 FLOAT,
+                internal_exam_2 FLOAT,
+                avg_internal FLOAT,
+                external_marks FLOAT,
+                total_marks FLOAT,
+                performance VARCHAR(50),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)

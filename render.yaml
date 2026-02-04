@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: student-dashboard
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app.main:app
+    plan: free
+    envVars:
+      - key: DB_HOST
+        value: mysql-3610415-rahuldumpala37-bf90.a.aivencloud.com
+      - key: DB_PORT
+        value: "11492"
+      - key: DB_USER
+        value: avnadmin
+      - key: DB_NAME
+        value: defaultdb
+      - key: PYTHON_VERSION
+        value: 3.10.12
+      - key: DB_PASSWORD
+        sync: false
