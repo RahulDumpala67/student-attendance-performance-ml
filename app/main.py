@@ -18,8 +18,25 @@ def get_db_connection():
         conn.row_factory = sqlite3.Row  # Access columns by name
         return conn
     except Exception as e:
-        print("DB connection failed:", e)
-        return None
+        return str(e) # Return error string instead of None for debugging
+
+# --- ... (routes) ...
+
+# --- 4. DATABASE SETUP ---
+@app.route('/init_db')
+def init_db():
+    conn = get_db_connection()
+    
+    # Check if conn is a string (error message)
+    if isinstance(conn, str):
+        return f"<h1 style='color:red;'>Database Error: {conn}</h1><p>Attempted path: {DB_NAME}</p>"
+    
+    if not conn:
+         return f"<h1 style='color:red;'>Database Unknown Error</h1><p>Attempted path: {DB_NAME}</p>"
+
+    try:
+        cur = conn.cursor()
+
 
 
 # --- 1. HOME PAGE (PREDICTION & INPUT) ---
