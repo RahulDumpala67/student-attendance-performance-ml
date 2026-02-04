@@ -1,21 +1,17 @@
 from flask import Flask, render_template, request, redirect, url_for
-import mysql.connector
+import sqlite3
 import os
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
+DB_NAME = "student_dashboard.db"
 
 # --- DATABASE CONNECTION HELPER ---
 def get_db_connection():
     try:
-        return mysql.connector.connect(
-            host=os.getenv("DB_HOST", "127.0.0.1"),
-            user=os.getenv("DB_USER", "root"),
-            password=os.getenv("DB_PASSWORD", "root"),
-            database=os.getenv("DB_NAME", "student_dashboard"),
-            port=int(os.getenv("DB_PORT", 3306)),
-            auth_plugin="mysql_native_password"
-        )
+        conn = sqlite3.connect(DB_NAME)
+        conn.row_factory = sqlite3.Row  # Access columns by name
+        return conn
     except Exception as e:
         print("DB connection failed:", e)
         return None
@@ -44,19 +40,18 @@ def index():
         else:
             category = "Poor"
 
-        db = get_db_connection()
-        if db:
+        conn = get_db_connection()
+        if conn:
             try:
-                cur = db.cursor()
+                cur = conn.cursor()
                 cur.execute("""
                     INSERT INTO predictions
                     (attendance, internal_exam_1, internal_exam_2,
                      avg_internal, external_marks, total_marks, performance)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s)
+                    VALUES (?,?,?,?,?,?,?)
                 """, (attendance, i1, i2, internal_avg, external, total, category))
-                db.commit()
-                cur.close()
-                db.close()
+                conn.commit()
+                conn.close()
             except Exception as e:
                 print("DB insert failed:", e)
 
@@ -72,12 +67,13 @@ def index():
 # --- 2. DASHBOARD ---
 @app.route("/dashboard")
 def dashboard():
-    db = get_db_connection()
-    if not db:
+    conn = get_db_connection()
+    if not conn:
         return render_template("dashboard.html", data=[], risk_students=[])
 
     try:
-        cur = db.cursor(dictionary=True)
+        cur = conn.cursor()
+        # No 'dictionary=True' in sqlite3, row_factory handles it
         cur.execute("""
             SELECT attendance, avg_internal, external_marks,
                    total_marks, performance, created_at
@@ -85,14 +81,14 @@ def dashboard():
             ORDER BY created_at DESC
         """)
         data = cur.fetchall()
-        cur.close()
-        db.close()
+        conn.close()
 
         risk_students = []
         for row in data:
             reasons = []
             intervention = "None"
 
+            # SQLite rows behave like dicts due to row_factory
             if row['attendance'] < 75:
                 reasons.append("Low Attendance")
                 intervention = "Parent Meeting"
@@ -105,9 +101,11 @@ def dashboard():
                     intervention += " & Remedial Classes"
 
             if reasons:
-                row['risk_factors'] = " + ".join(reasons)
-                row['intervention'] = intervention
-                risk_students.append(row)
+                # Convert row to dict to append extra fields (Rows are immutable)
+                row_dict = dict(row)
+                row_dict['risk_factors'] = " + ".join(reasons)
+                row_dict['intervention'] = intervention
+                risk_students.append(row_dict)
 
         return render_template("dashboard.html", data=data, risk_students=risk_students)
 
@@ -118,14 +116,13 @@ def dashboard():
 # --- 3. CLEAR HISTORY ---
 @app.route('/clear', methods=['POST'])
 def clear_history():
-    db = get_db_connection()
-    if db:
+    conn = get_db_connection()
+    if conn:
         try:
-            cur = db.cursor()
+            cur = conn.cursor()
             cur.execute("DELETE FROM predictions")
-            db.commit()
-            cur.close()
-            db.close()
+            conn.commit()
+            conn.close()
         except Exception as e:
             print("Clear failed:", e)
 
@@ -135,71 +132,50 @@ def clear_history():
 # --- 4. DATABASE SETUP ---
 @app.route('/init_db')
 def init_db():
-    db = get_db_connection()
-    if not db:
+    conn = get_db_connection()
+    if not conn:
         return "<h1 style='color:red;'>Database not available</h1>"
 
     try:
-        cur = db.cursor()
+        cur = conn.cursor()
         cur.execute("DROP TABLE IF EXISTS predictions")
+        # SQLite uses AUTOINCREMENT differently, usually implied by INTEGER PRIMARY KEY
         cur.execute("""
             CREATE TABLE predictions (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                attendance FLOAT,
-                internal_exam_1 FLOAT,
-                internal_exam_2 FLOAT,
-                avg_internal FLOAT,
-                external_marks FLOAT,
-                total_marks FLOAT,
-                performance VARCHAR(50),
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                attendance REAL,
+                internal_exam_1 REAL,
+                internal_exam_2 REAL,
+                avg_internal REAL,
+                external_marks REAL,
+                total_marks REAL,
+                performance TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        db.commit()
-        cur.close()
-        db.close()
+        conn.commit()
+        conn.close()
 
-        return "<h1 style='color:green;'>Database Initialized Successfully</h1>"
+        return "<h1 style='color:green;'>Database Initialized Successfully (SQLite)</h1>"
 
     except Exception as e:
         return f"<h1 style='color:red;'>Setup Failed: {e}</h1>"
 
 
 def check_and_create_db():
-    try:
-
-        test_conn = mysql.connector.connect(
-            host=os.getenv("DB_HOST", "127.0.0.1"),
-            user=os.getenv("DB_USER", "root"),
-            password=os.getenv("DB_PASSWORD", "root"),
-            database=os.getenv("DB_NAME", "student_dashboard"),
-            port=int(os.getenv("DB_PORT", 3306)),
-            auth_plugin="mysql_native_password"
-        )
-        test_conn.close()
-        print("Database connection verified.")
-
-    except mysql.connector.Error as err:
-
-        if err.errno == 1049:
-            print("Database does not exist. Attempting to create...")
-            try:
-                sys_conn = mysql.connector.connect(
-                    host=os.getenv("DB_HOST", "127.0.0.1"),
-                    user=os.getenv("DB_USER", "root"),
-                    password=os.getenv("DB_PASSWORD", "root"),
-                    port=int(os.getenv("DB_PORT", 3306)),
-                    auth_plugin="mysql_native_password"
-                )
-                cursor = sys_conn.cursor()
-                cursor.execute(f"CREATE DATABASE {os.getenv('DB_NAME', 'student_dashboard')}")
-                print("Database created successfully!")
-                cursor.close()
-                sys_conn.close()
-            except Exception as e:
-                print("Failed to auto-create database:", e)
-        else:
-            print("Database check failed:", err)
+    # SQLite creates the file automatically on connect
+    if not os.path.exists(DB_NAME):
+        print("Database file not found. Initializing...")
+        try:
+            # Re-use init_db logic indirectly or just let init_db handle table creation
+            # Here we just ensure the empty file is creatable
+            conn = sqlite3.connect(DB_NAME)
+            conn.close()
+            print("Database file created.")
+        except Exception as e:
+            print("Failed to create database file:", e)
+    else:
+        print("Database file found.")
 
 
 if __name__ == "__main__":
