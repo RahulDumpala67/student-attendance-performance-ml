@@ -1,0 +1,12 @@
+Flask
+Werkzeug
+
+pandas
+numpy
+scikit-learn
+joblib
+
+mysql-connector-python
+SQLAlchemy
+
+gunicorn

@@ -1,0 +1,92 @@
+/* static/style.css */
+:root {
+    --bg-dark: #090b10;
+    --card-bg: rgba(20, 25, 35, 0.85); /* See-through glass */
+    --neon-blue: #00f3ff;
+    --neon-purple: #bc13fe;
+    --neon-green: #00ff66;
+    --neon-yellow: #ffcc00;
+    --neon-orange: #ff8800;
+    --neon-red: #ff3333;
+    --text-main: #ffffff;
+    --text-muted: #8b9bb4;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-dark);
+    /* High-Res Cyberpunk Background */
+    background-image: url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=2070&auto=format&fit=crop');
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: center;
+    color: var(--text-main);
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+/* GLASS CARDS */
+.tech-card {
+    background: var(--card-bg);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(12px); /* The Blur Effect */
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 25px;
+    margin-bottom: 25px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Neon Top Border */
+.tech-card::before {
+    content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+    background: linear-gradient(90deg, var(--neon-purple), var(--neon-blue));
+}
+
+h1, h2, h3 { margin-top: 0; text-transform: uppercase; letter-spacing: 1px; }
+h3 { color: var(--neon-blue); font-size: 1.1rem; margin-bottom: 20px; display: flex; align-items: center; }
+h3::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.1); margin-left: 15px; }
+
+/* INPUTS */
+input {
+    width: 100%; padding: 12px; background: rgba(0,0,0,0.3);
+    border: 1px solid #444; color: #fff; border-radius: 6px; box-sizing: border-box;
+    transition: 0.3s;
+}
+input:focus { border-color: var(--neon-blue); outline: none; box-shadow: 0 0 15px rgba(0, 243, 255, 0.2); }
+
+/* BUTTONS */
+.cyber-btn {
+    display: inline-block; width: 100%; padding: 15px;
+    background: linear-gradient(135deg, var(--neon-purple), var(--neon-blue));
+    color: white; font-weight: bold; border: none; border-radius: 6px;
+    cursor: pointer; text-transform: uppercase; letter-spacing: 2px;
+    text-align: center; text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.cyber-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 20px rgba(0, 243, 255, 0.4);
+}
+
+/* STATUS COLORS (These match the Python Logic) */
+.status-best { color: var(--neon-green) !important; text-shadow: 0 0 10px var(--neon-green); font-weight: bold; }
+.status-good { color: var(--neon-yellow) !important; text-shadow: 0 0 10px var(--neon-yellow); font-weight: bold; }
+.status-average { color: var(--neon-orange) !important; text-shadow: 0 0 10px var(--neon-orange); font-weight: bold; }
+.status-poor { color: var(--neon-red) !important; text-shadow: 0 0 10px var(--neon-red); font-weight: bold; }
+
+/* TABLE */
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; padding: 15px; color: var(--text-muted); font-size: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
+td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+
+/* CHARTS */
+.chart-container { position: relative; height: 300px; width: 100%; }
