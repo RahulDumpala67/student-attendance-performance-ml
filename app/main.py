@@ -148,6 +148,7 @@ def health_check():
         try:
             cur = conn.cursor()
             cur.execute("SELECT 1")
+            cur.fetchone() # Consume the result to avoid "Unread result found"
             cur.close()
             conn.close()
             return "Active", 200
