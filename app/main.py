@@ -140,6 +140,22 @@ def clear_history():
     return redirect(url_for('dashboard'))
 
 
+# --- 3.5. HEALTH CHECK (KEEP-ALIVE) ---
+@app.route('/health')
+def health_check():
+    conn = get_db_connection()
+    if hasattr(conn, 'cursor'):
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT 1")
+            cur.close()
+            conn.close()
+            return "Active", 200
+        except Exception as e:
+            return f"DB Error: {e}", 500
+    return "DB Connection Failed", 500
+
+
 # --- 4. DATABASE SETUP ---
 @app.route('/init_db')
 def init_db():
